@@ -5,8 +5,8 @@ body {
   padding: 0;
 }
 
-.auth-container, .dashboard-container {
-  max-width: 600px;
+.dashboard-container {
+  max-width: 800px;
   margin: 50px auto;
   padding: 20px;
   background-color: #ffffff;
@@ -78,15 +78,7 @@ h2 {
 
 h3 {
   color: #007bff;
-}
-
-a {
-  color: #007bff;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
+  margin-top: 20px;
 }
 
 ul {
@@ -103,4 +95,8 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+p {
+  color: #6c757d;
 }

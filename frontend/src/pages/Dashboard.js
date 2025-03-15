@@ -7,6 +7,7 @@ const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [protocol, setProtocol] = useState('');
   const [percentage, setPercentage] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -60,13 +61,28 @@ const Dashboard = () => {
     }
   };
 
+  const handleAddWallet = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.post('/wallet', { address: walletAddress }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
+      setWalletAddress('');
+    } catch (err) {
+      console.error('Add wallet error:', err.response?.data || err.message);
+      alert('Failed to add wallet: ' + (err.response?.data.msg || 'Unknown error'));
+    }
+  };
+
   if (!userData) return <div>Loading...</div>;
 
   return (
     <div className="dashboard-container">
       <h2>Dashboard</h2>
       <p>Welcome, {userData.email}!</p>
-      
+
       <h3>Add Portfolio Item</h3>
       <form onSubmit={handleAddPortfolio} className="portfolio-form">
         <input
@@ -90,6 +106,19 @@ const Dashboard = () => {
         <button type="submit" className="auth-button">Add Item</button>
       </form>
 
+      <h3>Add Wallet Address</h3>
+      <form onSubmit={handleAddWallet} className="portfolio-form">
+        <input
+          type="text"
+          value={walletAddress}
+          onChange={(e) => setWalletAddress(e.target.value)}
+          placeholder="Wallet Address (e.g., 0x...)"
+          required
+          className="auth-input"
+        />
+        <button type="submit" className="auth-button">Add Wallet</button>
+      </form>
+
       <h3>Your Portfolio</h3>
       {userData.portfolio.length > 0 ? (
         <ul>
@@ -108,6 +137,18 @@ const Dashboard = () => {
       ) : (
         <p>No portfolio items yet.</p>
       )}
+
+      <h3>Your Wallets</h3>
+      {userData.walletAddresses.length > 0 ? (
+        <ul>
+          {userData.walletAddresses.map((address, index) => (
+            <li key={index}>{address}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No wallet addresses yet.</p>
+      )}
+
       <button onClick={handleLogout} className="auth-button logout-button">Logout</button>
     </div>
   );

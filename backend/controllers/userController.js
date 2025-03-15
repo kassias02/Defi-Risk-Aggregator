@@ -72,5 +72,21 @@ module.exports = {
       console.error(err);
       res.status(500).json({ msg: 'Server error' });
     }
+  },
+  addWallet: async (req, res) => {
+    const { address } = req.body;
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ msg: 'User not found' });
+      if (user.walletAddresses.includes(address)) {
+        return res.status(400).json({ msg: 'Wallet address already added' });
+      }
+      user.walletAddresses.push(address);
+      await user.save();
+      res.json({ msg: 'Wallet added', walletAddresses: user.walletAddresses });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ msg: 'Server error' });
+    }
   }
 };
