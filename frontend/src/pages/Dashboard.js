@@ -76,6 +76,12 @@ const Dashboard = () => {
     }
   };
 
+  const calculateRiskScore = () => {
+    if (!userData || !userData.portfolio.length) return 'N/A';
+    const totalPercentage = userData.portfolio.reduce((sum, item) => sum + Number(item.percentage), 0);
+    return totalPercentage > 100 ? 'High Risk' : totalPercentage > 50 ? 'Moderate Risk' : 'Low Risk';
+  };
+
   if (!userData) return <div>Loading...</div>;
 
   return (
@@ -148,6 +154,10 @@ const Dashboard = () => {
       ) : (
         <p>No wallet addresses yet.</p>
       )}
+
+      <div className="risk-score">
+        <h3>Risk Level: {calculateRiskScore()}</h3>
+      </div>
 
       <button onClick={handleLogout} className="auth-button logout-button">Logout</button>
     </div>

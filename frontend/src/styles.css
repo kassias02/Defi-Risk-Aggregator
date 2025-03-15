@@ -72,6 +72,18 @@ body {
   background-color: #ff4d4d;
 }
 
+.risk-score {
+  margin: 20px 0;
+  padding: 10px;
+  background-color: #fff3cd;
+  border-radius: 4px;
+}
+
+.risk-score h3 {
+  color: #856404;
+  margin: 0;
+}
+
 h2 {
   color: #333;
 }
