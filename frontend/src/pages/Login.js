@@ -1,4 +1,3 @@
-// frontend/src/pages/Login.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
@@ -16,6 +15,7 @@ const Login = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
+      console.error('Login error:', err.response?.data || err.message);
       alert('Login failed: ' + (err.response?.data.msg || 'Unknown error'));
     }
   };

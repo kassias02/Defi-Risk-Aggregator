@@ -1,4 +1,3 @@
-// frontend/src/pages/Signup.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
@@ -16,6 +15,7 @@ const Signup = () => {
       alert('Registration successful! Please log in.');
       navigate('/login');
     } catch (err) {
+      console.error('Signup error:', err.response?.data || err.message);
       alert('Registration failed: ' + (err.response?.data.msg || 'Unknown error'));
     }
   };
