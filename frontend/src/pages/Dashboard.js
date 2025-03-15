@@ -5,6 +5,8 @@ import '../styles.css';
 
 const Dashboard = () => {
   const [userData, setUserData] = useState(null);
+  const [protocol, setProtocol] = useState('');
+  const [percentage, setPercentage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,12 +31,52 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const handleAddPortfolio = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.post('/portfolio', { protocol, percentage }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData({ ...userData, portfolio: response.data.portfolio });
+      setProtocol('');
+      setPercentage('');
+    } catch (err) {
+      console.error('Add portfolio error:', err.response?.data || err.message);
+      alert('Failed to add portfolio item: ' + (err.response?.data.msg || 'Unknown error'));
+    }
+  };
+
   if (!userData) return <div>Loading...</div>;
 
   return (
     <div className="dashboard-container">
       <h2>Dashboard</h2>
       <p>Welcome, {userData.email}!</p>
+      
+      <h3>Add Portfolio Item</h3>
+      <form onSubmit={handleAddPortfolio} className="portfolio-form">
+        <input
+          type="text"
+          value={protocol}
+          onChange={(e) => setProtocol(e.target.value)}
+          placeholder="Protocol (e.g., Aave)"
+          required
+          className="auth-input"
+        />
+        <input
+          type="number"
+          value={percentage}
+          onChange={(e) => setPercentage(e.target.value)}
+          placeholder="Percentage (0-100)"
+          min="0"
+          max="100"
+          required
+          className="auth-input"
+        />
+        <button type="submit" className="auth-button">Add Item</button>
+      </form>
+
       <h3>Your Portfolio</h3>
       {userData.portfolio.length > 0 ? (
         <ul>
@@ -45,7 +87,7 @@ const Dashboard = () => {
       ) : (
         <p>No portfolio items yet.</p>
       )}
-      <button onClick={handleLogout} className="auth-button">Logout</button>
+      <button onClick={handleLogout} className="auth-button logout-button">Logout</button>
     </div>
   );
 };

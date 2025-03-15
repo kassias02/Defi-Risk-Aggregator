@@ -43,5 +43,18 @@ module.exports = {
       console.error(err);
       res.status(500).json({ msg: 'Server error' });
     }
+  },
+  addPortfolioItem: async (req, res) => {
+    const { protocol, percentage } = req.body;
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ msg: 'User not found' });
+      user.portfolio.push({ protocol, percentage });
+      await user.save();
+      res.json({ msg: 'Portfolio item added', portfolio: user.portfolio });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ msg: 'Server error' });
+    }
   }
 };
