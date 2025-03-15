@@ -1,14 +1,21 @@
-// src/pages/Dashboard.js
+// frontend/src/pages/Dashboard.js
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../styles.css';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   return (
     <div className="auth-container">
-      <h2>Welcome to DeFi Risk Aggregator</h2>
-      <p>Your dashboard is under construction. Check back soon!</p>
-      <Link to="/login" className="auth-button">Logout</Link>
+      <h2>Dashboard</h2>
+      <p>Welcome to DeFi Risk Aggregator!</p>
+      <button onClick={handleLogout} className="auth-button">Logout</button>
     </div>
   );
 };

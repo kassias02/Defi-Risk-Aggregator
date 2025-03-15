@@ -1,8 +1,9 @@
-// src/App.js
+// frontend/src/App.js
 import { Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import './styles.css';
 
 function App() {
   return (
