@@ -28,12 +28,14 @@ const Dashboard = () => {
           if (ethers.isAddress(address)) {
             const balance = await provider.getBalance(address);
             walletBalances[address] = ethers.formatEther(balance);
+          } else {
+            walletBalances[address] = 'Invalid Address';
           }
         }
         setUserData(user);
         setBalances(walletBalances);
       } catch (err) {
-        console.error('Fetch error:', err.response?.data || err.message);
+        console.error('Fetch error:', err.message || err);
         localStorage.removeItem('token');
         navigate('/login');
       }
@@ -50,15 +52,15 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await api.post('/portfolio', { protocol, percentage }, {
+      const response = await api.post('/portfolio', { protocol snowflake, percentage }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserData({ ...userData, portfolio: response.data.portfolio });
       setProtocol('');
       setPercentage('');
     } catch (err) {
-      console.error('Add portfolio error:', err.response?.data || err.message);
-      alert('Failed to add portfolio item: ' + (err.response?.data.msg || 'Unknown error'));
+      console.error('Add portfolio error:', err.message || err);
+      alert('Failed to add portfolio item: ' + (err.response?.data?.msg || 'Unknown error'));
     }
   };
 
@@ -70,8 +72,8 @@ const Dashboard = () => {
       });
       setUserData({ ...userData, portfolio: response.data.portfolio });
     } catch (err) {
-      console.error('Delete portfolio error:', err.response?.data || err.message);
-      alert('Failed to delete portfolio item: ' + (err.response?.data.msg || 'Unknown error'));
+      console.error('Delete portfolio error:', err.message || err);
+      alert('Failed to delete portfolio item: ' + (err.response?.data?.msg || 'Unknown error'));
     }
   };
 
@@ -86,12 +88,14 @@ const Dashboard = () => {
       if (ethers.isAddress(walletAddress)) {
         const balance = await provider.getBalance(walletAddress);
         setBalances({ ...balances, [walletAddress]: ethers.formatEther(balance) });
+      } else {
+        setBalances({ ...balances, [walletAddress]: 'Invalid Address' });
       }
       setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
       setWalletAddress('');
     } catch (err) {
-      console.error('Add wallet error:', err.response?.data || err.message);
-      alert('Failed to add wallet: ' + (err.response?.data.msg || 'Unknown error'));
+      console.error('Add wallet error:', err.message || err);
+      alert('Failed to add wallet: ' + (err.response?.data?.msg || err.message || 'Unknown error'));
     }
   };
 
@@ -106,8 +110,8 @@ const Dashboard = () => {
       setBalances(newBalances);
       setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
     } catch (err) {
-      console.error('Delete wallet error:', err.response?.data || err.message);
-      alert('Failed to delete wallet: ' + (err.response?.data.msg || 'Unknown error'));
+      console.error('Delete wallet error:', err.message || err);
+      alert('Failed to delete wallet: ' + (err.response?.data?.msg || 'Unknown error'));
     }
   };
 
@@ -152,7 +156,7 @@ const Dashboard = () => {
         <input
           type="text"
           value={walletAddress}
-          onChange={(e) => setWalletAddress(e.target.value)}
+          onChange={(e) => setProtocol(e.target.value)}
           placeholder="Wallet Address (e.g., 0x...)"
           required
           className="auth-input"
