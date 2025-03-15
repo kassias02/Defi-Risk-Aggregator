@@ -1,4 +1,3 @@
-/* frontend/src/styles.css */
 body {
   font-family: Arial, sans-serif;
   background-color: #f0f2f5;
@@ -6,8 +5,8 @@ body {
   padding: 0;
 }
 
-.auth-container {
-  max-width: 400px;
+.auth-container, .dashboard-container {
+  max-width: 600px;
   margin: 50px auto;
   padding: 20px;
   background-color: #ffffff;
@@ -42,6 +41,7 @@ body {
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
+  margin-top: 10px;
 }
 
 .auth-button:hover {
@@ -52,6 +52,10 @@ h2 {
   color: #333;
 }
 
+h3 {
+  color: #007bff;
+}
+
 a {
   color: #007bff;
   text-decoration: none;
@@ -59,4 +63,16 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  background-color: #e9ecef;
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 4px;
 }
