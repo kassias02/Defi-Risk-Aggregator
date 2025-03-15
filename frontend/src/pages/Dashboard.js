@@ -47,6 +47,19 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeletePortfolio = async (index) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.delete(`/portfolio/${index}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData({ ...userData, portfolio: response.data.portfolio });
+    } catch (err) {
+      console.error('Delete portfolio error:', err.response?.data || err.message);
+      alert('Failed to delete portfolio item: ' + (err.response?.data.msg || 'Unknown error'));
+    }
+  };
+
   if (!userData) return <div>Loading...</div>;
 
   return (
@@ -81,7 +94,15 @@ const Dashboard = () => {
       {userData.portfolio.length > 0 ? (
         <ul>
           {userData.portfolio.map((item, index) => (
-            <li key={index}>{item.protocol}: {item.percentage}%</li>
+            <li key={index}>
+              {item.protocol}: {item.percentage}%
+              <button
+                onClick={() => handleDeletePortfolio(index)}
+                className="delete-button"
+              >
+                Delete
+              </button>
+            </li>
           ))}
         </ul>
       ) : (

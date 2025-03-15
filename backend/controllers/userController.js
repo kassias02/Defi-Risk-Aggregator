@@ -56,5 +56,21 @@ module.exports = {
       console.error(err);
       res.status(500).json({ msg: 'Server error' });
     }
+  },
+  deletePortfolioItem: async (req, res) => {
+    const { index } = req.params;
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ msg: 'User not found' });
+      if (index < 0 || index >= user.portfolio.length) {
+        return res.status(400).json({ msg: 'Invalid index' });
+      }
+      user.portfolio.splice(index, 1);
+      await user.save();
+      res.json({ msg: 'Portfolio item deleted', portfolio: user.portfolio });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ msg: 'Server error' });
+    }
   }
 };

@@ -7,5 +7,6 @@ router.post('/login', userController.login);
 router.post('/register', userController.register);
 router.get('/user', auth, userController.getUser);
 router.post('/portfolio', auth, userController.addPortfolioItem);
+router.delete('/portfolio/:index', auth, userController.deletePortfolioItem);
 
 module.exports = router;
