@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ethers } from 'ethers';
 import api from '../services/api';
 import '../styles.css';
 
@@ -8,16 +9,29 @@ const Dashboard = () => {
   const [protocol, setProtocol] = useState('');
   const [percentage, setPercentage] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
+  const [balances, setBalances] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await api.get('/user', {
+        const userResponse = await api.get('/user', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setUserData(response.data);
+        const rpcResponse = await api.get('/rpc');
+        const provider = new ethers.JsonRpcProvider(rpcResponse.data.rpcUrl);
+
+        const user = userResponse.data;
+        const walletBalances = {};
+        for (const address of user.walletAddresses) {
+          if (ethers.isAddress(address)) {
+            const balance = await provider.getBalance(address);
+            walletBalances[address] = ethers.formatEther(balance);
+          }
+        }
+        setUserData(user);
+        setBalances(walletBalances);
       } catch (err) {
         console.error('Fetch error:', err.response?.data || err.message);
         localStorage.removeItem('token');
@@ -68,11 +82,32 @@ const Dashboard = () => {
       const response = await api.post('/wallet', { address: walletAddress }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      const provider = new ethers.JsonRpcProvider((await api.get('/rpc')).data.rpcUrl);
+      if (ethers.isAddress(walletAddress)) {
+        const balance = await provider.getBalance(walletAddress);
+        setBalances({ ...balances, [walletAddress]: ethers.formatEther(balance) });
+      }
       setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
       setWalletAddress('');
     } catch (err) {
       console.error('Add wallet error:', err.response?.data || err.message);
       alert('Failed to add wallet: ' + (err.response?.data.msg || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteWallet = async (index) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.delete(`/wallet/${index}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const newBalances = { ...balances };
+      delete newBalances[userData.walletAddresses[index]];
+      setBalances(newBalances);
+      setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
+    } catch (err) {
+      console.error('Delete wallet error:', err.response?.data || err.message);
+      alert('Failed to delete wallet: ' + (err.response?.data.msg || 'Unknown error'));
     }
   };
 
@@ -148,7 +183,15 @@ const Dashboard = () => {
       {userData.walletAddresses.length > 0 ? (
         <ul>
           {userData.walletAddresses.map((address, index) => (
-            <li key={index}>{address}</li>
+            <li key={index}>
+              {address} {balances[address] ? `- ${balances[address]} ETH` : ''}
+              <button
+                onClick={() => handleDeleteWallet(index)}
+                className="delete-button"
+              >
+                Delete
+              </button>
+            </li>
           ))}
         </ul>
       ) : (

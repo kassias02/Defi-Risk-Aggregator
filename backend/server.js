@@ -10,6 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use('/api', userRoutes);
 
+// Expose RPC URL endpoint
+app.get('/api/rpc', (req, res) => {
+  res.json({ rpcUrl: process.env.ETH_RPC_URL });
+});
+
 mongoose.connect(process.env.DATABASE_URL)
   .then(() => console.log('Connecté à MongoDB'))
   .catch(err => console.error('Erreur de connexion MongoDB:', err));
