@@ -52,7 +52,7 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await api.post('/portfolio', { protocol snowflake, percentage }, {
+      const response = await api.post('/portfolio', { protocol, percentage }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserData({ ...userData, portfolio: response.data.portfolio });
@@ -156,7 +156,7 @@ const Dashboard = () => {
         <input
           type="text"
           value={walletAddress}
-          onChange={(e) => setProtocol(e.target.value)}
+          onChange={(e) => setWalletAddress(e.target.value)} // Fixed typo here
           placeholder="Wallet Address (e.g., 0x...)"
           required
           className="auth-input"
