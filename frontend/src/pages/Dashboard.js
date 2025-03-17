@@ -22,7 +22,12 @@ const Dashboard = () => {
         });
         const rpcResponse = await api.get('/rpc');
         const ethProvider = new ethers.JsonRpcProvider(rpcResponse.data.rpcUrl);
-        const solConnection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+        const solRpcs = [
+          process.env.REACT_APP_SOLANA_RPC_URL || 'https://solana-mainnet.g.alchemy.com/v2/YOUR_API_KEY',
+          'https://api.mainnet-beta.solana.com',
+          'https://solana-api.projectserum.com'
+        ];
+        const solConnection = new Connection(solRpcs[0], 'confirmed');
 
         const user = userResponse.data;
         const walletBalances = {};
@@ -34,9 +39,19 @@ const Dashboard = () => {
               const ethBalance = await ethProvider.getBalance(address);
               walletBalances[address] = { eth: ethers.formatEther(ethBalance) };
             } else if (address.length >= 32 && address.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(address)) {
-              const publicKey = new PublicKey(address);
-              const solBalance = await solConnection.getBalance(publicKey);
-              walletBalances[address] = { sol: solBalance / 1e9 }; // Lamports to SOL
+              let solBalance;
+              for (const rpc of solRpcs) {
+                try {
+                  const connection = new Connection(rpc, 'confirmed');
+                  const publicKey = new PublicKey(address);
+                  solBalance = await connection.getBalance(publicKey);
+                  break;
+                } catch (rpcErr) {
+                  console.warn(`Solana RPC ${rpc} failed:`, rpcErr);
+                  if (rpc === solRpcs[solRpcs.length - 1]) throw rpcErr;
+                }
+              }
+              walletBalances[address] = { sol: solBalance / 1e9 };
             } else {
               walletBalances[address] = { error: 'Unsupported Address' };
             }
@@ -98,8 +113,13 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const ethProvider = new ethers.JsonRpcProvider((await api.get('/rpc')).data.rpcUrl);
-      const solConnection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-      
+      const solRpcs = [
+        process.env.REACT_APP_SOLANA_RPC_URL || 'https://solana-mainnet.g.alchemy.com/v2/YOUR_API_KEY',
+        'https://api.mainnet-beta.solana.com',
+        'https://solana-api.projectserum.com'
+      ];
+      const solConnection = new Connection(solRpcs[0], 'confirmed');
+
       const newBalances = { ...balances, [walletAddress]: { status: 'Fetching...' } };
       setBalances(newBalances);
 
@@ -107,8 +127,18 @@ const Dashboard = () => {
         const ethBalance = await ethProvider.getBalance(walletAddress);
         newBalances[walletAddress] = { eth: ethers.formatEther(ethBalance) };
       } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(walletAddress)) {
-        const publicKey = new PublicKey(walletAddress);
-        const solBalance = await solConnection.getBalance(publicKey);
+        let solBalance;
+        for (const rpc of solRpcs) {
+          try {
+            const connection = new Connection(rpc, 'confirmed');
+            const publicKey = new PublicKey(walletAddress);
+            solBalance = await connection.getBalance(publicKey);
+            break;
+          } catch (rpcErr) {
+            console.warn(`Solana RPC ${rpc} failed:`, rpcErr);
+            if (rpc === solRpcs[solRpcs.length - 1]) throw rpcErr;
+          }
+        }
         newBalances[walletAddress] = { sol: solBalance / 1e9 };
       } else {
         newBalances[walletAddress] = { error: 'Unsupported Address' };
