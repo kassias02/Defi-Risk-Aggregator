@@ -130,7 +130,7 @@ const Dashboard = () => {
       if (ethers.isAddress(walletAddress)) {
         const ethBalance = await ethProvider.getBalance(walletAddress);
         newBalances[walletAddress] = { eth: ethers.formatEther(ethBalance) };
-      } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(address)) {
+      } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(walletAddress)) {
         let solBalance;
         for (const rpc of solRpcs) {
           try {
