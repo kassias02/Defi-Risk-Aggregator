@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
+import { Connection, PublicKey } from '@solana/web3.js';
 import api from '../services/api';
 import '../styles.css';
 
@@ -20,16 +21,26 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         const rpcResponse = await api.get('/rpc');
-        const provider = new ethers.JsonRpcProvider(rpcResponse.data.rpcUrl);
+        const ethProvider = new ethers.JsonRpcProvider(rpcResponse.data.rpcUrl);
+        const solConnection = new Connection(process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
 
         const user = userResponse.data;
         const walletBalances = {};
         for (const address of user.walletAddresses) {
-          if (ethers.isAddress(address)) {
-            const balance = await provider.getBalance(address);
-            walletBalances[address] = ethers.formatEther(balance);
-          } else {
-            walletBalances[address] = 'Invalid Address';
+          try {
+            if (ethers.isAddress(address)) {
+              const ethBalance = await ethProvider.getBalance(address);
+              walletBalances[address] = { eth: ethers.formatEther(ethBalance) };
+            } else if (isValidSolanaAddress(address)) {
+              const publicKey = new PublicKey(address);
+              const solBalance = await solConnection.getBalance(publicKey);
+              walletBalances[address] = { sol: solBalance / 1e9 }; // Lamports to SOL
+            } else {
+              walletBalances[address] = { error: 'Invalid Address' };
+            }
+          } catch (err) {
+            walletBalances[address] = { error: 'Fetch Error' };
+            console.error(`Error fetching balance for ${address}:`, err);
           }
         }
         setUserData(user);
@@ -42,6 +53,15 @@ const Dashboard = () => {
     };
     fetchUserData();
   }, [navigate]);
+
+  const isValidSolanaAddress = (address) => {
+    try {
+      new PublicKey(address);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -84,12 +104,18 @@ const Dashboard = () => {
       const response = await api.post('/wallet', { address: walletAddress }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const provider = new ethers.JsonRpcProvider((await api.get('/rpc')).data.rpcUrl);
+      const ethProvider = new ethers.JsonRpcProvider((await api.get('/rpc')).data.rpcUrl);
+      const solConnection = new Connection(process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+      
       if (ethers.isAddress(walletAddress)) {
-        const balance = await provider.getBalance(walletAddress);
-        setBalances({ ...balances, [walletAddress]: ethers.formatEther(balance) });
+        const ethBalance = await ethProvider.getBalance(walletAddress);
+        setBalances({ ...balances, [walletAddress]: { eth: ethers.formatEther(ethBalance) } });
+      } else if (isValidSolanaAddress(walletAddress)) {
+        const publicKey = new PublicKey(walletAddress);
+        const solBalance = await solConnection.getBalance(publicKey);
+        setBalances({ ...balances, [walletAddress]: { sol: solBalance / 1e9 } });
       } else {
-        setBalances({ ...balances, [walletAddress]: 'Invalid Address' });
+        setBalances({ ...balances, [walletAddress]: { error: 'Invalid Address' } });
       }
       setUserData({ ...userData, walletAddresses: response.data.walletAddresses });
       setWalletAddress('');
@@ -126,7 +152,7 @@ const Dashboard = () => {
       totalPercentage += Number(item.percentage);
     });
     const walletRisk = Object.values(balances).reduce((sum, bal) => 
-      sum + (typeof bal === 'number' && bal > 0.1 ? 2 : 0), 0);
+      sum + ((bal.eth && Number(bal.eth) > 0.1) || (bal.sol && bal.sol > 10) ? 2 : 0), 0);
     totalRiskScore += walletRisk;
 
     if (totalPercentage > 100 || totalRiskScore > 7) return { level: 'High Risk', score: totalRiskScore };
@@ -172,7 +198,7 @@ const Dashboard = () => {
           type="text"
           value={walletAddress}
           onChange={(e) => setWalletAddress(e.target.value)}
-          placeholder="Wallet Address (e.g., 0x...)"
+          placeholder="Wallet Address (e.g., 0x... or Solana)"
           required
           className="auth-input"
         />
@@ -207,7 +233,10 @@ const Dashboard = () => {
         <ul>
           {userData.walletAddresses.map((address, index) => (
             <li key={index}>
-              {address} {balances[address] ? `- ${Number(balances[address]).toFixed(4)} ETH ($${((Number(balances[address]) * 1800)).toFixed(2)})` : ''}
+              {address}{' '}
+              {balances[address]?.eth ? `- ${Number(balances[address].eth).toFixed(4)} ETH ($${((Number(balances[address].eth) * 1800)).toFixed(2)})` : ''}
+              {balances[address]?.sol ? `- ${Number(balances[address].sol).toFixed(4)} SOL ($${((Number(balances[address].sol) * 50)).toFixed(2)})` : ''}
+              {balances[address]?.error ? `- ${balances[address].error}` : ''}
               <button
                 onClick={() => handleDeleteWallet(index)}
                 className="delete-button"
