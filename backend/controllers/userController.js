@@ -152,3 +152,13 @@ module.exports = {
       if (!user) return res.status(404).json({ msg: 'User not found' });
       if (index < 0 || index >= user.walletAddresses.length) {
         return res.status(400).json({ msg: 'Invalid index' });
+      }
+      user.walletAddresses.splice(index, 1);
+      await user.save();
+      res.json({ msg: 'Wallet deleted', walletAddresses: user.walletAddresses });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ msg: 'Server error' });
+    }
+  }
+};
