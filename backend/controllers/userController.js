@@ -13,7 +13,7 @@ const optimizePortfolio = (portfolio) => {
   if (totalPercentage === 0) return { suggestions: [], targetRisk: 0, targetYield: 0 };
 
   const currentRisk = portfolio.reduce((sum, item) => {
-    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5 };
+    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5, apy: 0 };
     return sum + (10 - proto.securityScore) * (item.percentage / 100);
   }, 0);
   const currentYield = portfolio.reduce((sum, item) => {
@@ -24,26 +24,33 @@ const optimizePortfolio = (portfolio) => {
   const suggestions = [];
   let targetRisk = currentRisk;
   let targetYield = currentYield;
+  const remainingCapacity = 100 - totalPercentage;
 
-  // Simple optimization: reduce high-risk, increase high-yield
+  // Reduce high-risk protocols first
+  portfolio.forEach(item => {
+    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5, apy: 0 };
+    const riskImpact = 10 - proto.securityScore;
+    const currentPerc = Number(item.percentage);
+    if (riskImpact > 5 && currentPerc > 0) {
+      const reduceBy = Math.min(currentPerc, 10);
+      suggestions.push(`Reduce ${item.protocol} by ${reduceBy}% (Risk: ${riskImpact}/10)`);
+      targetRisk -= riskImpact * (reduceBy / 100);
+      targetYield -= proto.apy * (reduceBy / 100);
+    }
+  });
+
+  // Increase high-yield, low-risk protocols
   Object.keys(protocolData).forEach(proto => {
     const current = portfolio.find(p => p.protocol.toLowerCase() === proto) || { percentage: 0 };
     const currentPerc = Number(current.percentage);
     const { securityScore, apy } = protocolData[proto];
     const riskImpact = 10 - securityScore;
 
-    if (riskImpact > 5 && currentPerc > 0) {
-      const reduceBy = Math.min(currentPerc, 10);
-      suggestions.push(`Reduce ${proto} by ${reduceBy}% (Risk: ${riskImpact}/10)`);
-      targetRisk -= riskImpact * (reduceBy / 100);
-      targetYield -= apy * (reduceBy / 100);
-    } else if (apy > currentYield && currentPerc < 50) {
-      const increaseBy = Math.min(10, 100 - totalPercentage);
-      if (increaseBy > 0) {
-        suggestions.push(`Increase ${proto} by ${increaseBy}% (APY: ${apy}%)`);
-        targetRisk += riskImpact * (increaseBy / 100);
-        targetYield += apy * (increaseBy / 100);
-      }
+    if (apy > currentYield / totalPercentage && riskImpact < 5 && currentPerc < 50 && remainingCapacity > 0) {
+      const increaseBy = Math.min(10, remainingCapacity);
+      suggestions.push(`Increase ${proto} by ${increaseBy}% (APY: ${apy}%)`);
+      targetRisk += riskImpact * (increaseBy / 100);
+      targetYield += apy * (increaseBy / 100);
     }
   });
 
@@ -145,13 +152,3 @@ module.exports = {
       if (!user) return res.status(404).json({ msg: 'User not found' });
       if (index < 0 || index >= user.walletAddresses.length) {
         return res.status(400).json({ msg: 'Invalid index' });
-      }
-      user.walletAddresses.splice(index, 1);
-      await user.save();
-      res.json({ msg: 'Wallet deleted', walletAddresses: user.walletAddresses });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ msg: 'Server error' });
-    }
-  }
-};

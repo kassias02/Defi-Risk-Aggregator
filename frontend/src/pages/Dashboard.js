@@ -79,7 +79,7 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await api.post('/portfolio', { protocol, percentage }, {
+      await api.post('/portfolio', { protocol, percentage }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const updatedUser = await api.get('/user', {
@@ -130,7 +130,7 @@ const Dashboard = () => {
       if (ethers.isAddress(walletAddress)) {
         const ethBalance = await ethProvider.getBalance(walletAddress);
         newBalances[walletAddress] = { eth: ethers.formatEther(ethBalance) };
-      } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(walletAddress)) {
+      } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(address)) {
         let solBalance;
         for (const rpc of solRpcs) {
           try {
