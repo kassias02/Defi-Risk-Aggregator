@@ -2,6 +2,13 @@ const User = require('../models/user');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// Mock protocol data (replace with real API calls later)
+const protocolData = {
+  'eth': { securityScore: 8, tvl: 10000000000, health: 'Stable' },
+  'aave': { securityScore: 9, tvl: 5000000000, health: 'Strong' },
+  'bizarre': { securityScore: 4, tvl: 1000000, health: 'Risky' }
+};
+
 module.exports = {
   login: async (req, res) => {
     const { email, password } = req.body;
@@ -38,7 +45,7 @@ module.exports = {
   getUser: async (req, res) => {
     try {
       const user = await User.findById(req.user.id).select('-password');
-      res.json(user);
+      res.json({ ...user._doc, protocolData });
     } catch (err) {
       console.error(err);
       res.status(500).json({ msg: 'Server error' });

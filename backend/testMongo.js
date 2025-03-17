@@ -1,5 +1,5 @@
 const { MongoClient } = require('mongodb');
-const uri = "mongodb+srv://defiadmin:Latifa06@deficluster.a0qih.mongodb.net/?retryWrites=true&w=majority&appName=DefiCluster";
+const uri = "mongodb+srv://defiadmin:Latifa06@deficluster.a0qih.mongodb.net/defi-analyzer?retryWrites=true&w=majority&appName=DefiCluster";
 
 async function testConnection() {
   const client = new MongoClient(uri);

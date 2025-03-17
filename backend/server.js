@@ -15,7 +15,12 @@ app.get('/api/rpc', (req, res) => {
   res.json({ rpcUrl: process.env.ETH_RPC_URL });
 });
 
-mongoose.connect(process.env.DATABASE_URL)
+// MongoDB connection with increased timeouts
+mongoose.connect(process.env.DATABASE_URL, {
+  connectTimeoutMS: 30000, // 30 seconds
+  socketTimeoutMS: 45000,  // 45 seconds
+  serverSelectionTimeoutMS: 30000 // 30 seconds
+})
   .then(() => console.log('Connecté à MongoDB'))
   .catch(err => console.error('Erreur de connexion MongoDB:', err));
 

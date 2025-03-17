@@ -6,7 +6,7 @@ body {
 }
 
 .dashboard-container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 50px auto;
   padding: 20px;
   background-color: #ffffff;
@@ -96,6 +96,7 @@ h3 {
 ul {
   list-style: none;
   padding: 0;
+  text-align: left;
 }
 
 li {
@@ -107,6 +108,7 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 14px;
 }
 
 p {

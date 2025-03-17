@@ -116,12 +116,27 @@ const Dashboard = () => {
   };
 
   const calculateRiskScore = () => {
-    if (!userData || !userData.portfolio.length) return 'N/A';
-    const totalPercentage = userData.portfolio.reduce((sum, item) => sum + Number(item.percentage), 0);
-    return totalPercentage > 100 ? 'High Risk' : totalPercentage > 50 ? 'Moderate Risk' : 'Low Risk';
+    if (!userData || !userData.portfolio.length) return { level: 'N/A', score: 0 };
+    let totalRiskScore = 0;
+    let totalPercentage = 0;
+    userData.portfolio.forEach(item => {
+      const protoData = userData.protocolData[item.protocol.toLowerCase()] || { securityScore: 5, tvl: 0 };
+      const riskFactor = (10 - protoData.securityScore) * (item.percentage / 100);
+      totalRiskScore += riskFactor;
+      totalPercentage += Number(item.percentage);
+    });
+    const walletRisk = Object.values(balances).reduce((sum, bal) => 
+      sum + (typeof bal === 'number' && bal > 0.1 ? 2 : 0), 0);
+    totalRiskScore += walletRisk;
+
+    if (totalPercentage > 100 || totalRiskScore > 7) return { level: 'High Risk', score: totalRiskScore };
+    if (totalPercentage > 50 || totalRiskScore > 3) return { level: 'Moderate Risk', score: totalRiskScore };
+    return { level: 'Low Risk', score: totalRiskScore };
   };
 
   if (!userData) return <div>Loading...</div>;
+
+  const risk = calculateRiskScore();
 
   return (
     <div className="dashboard-container">
@@ -156,7 +171,7 @@ const Dashboard = () => {
         <input
           type="text"
           value={walletAddress}
-          onChange={(e) => setWalletAddress(e.target.value)} // Fixed typo here
+          onChange={(e) => setWalletAddress(e.target.value)}
           placeholder="Wallet Address (e.g., 0x...)"
           required
           className="auth-input"
@@ -167,17 +182,21 @@ const Dashboard = () => {
       <h3>Your Portfolio</h3>
       {userData.portfolio.length > 0 ? (
         <ul>
-          {userData.portfolio.map((item, index) => (
-            <li key={index}>
-              {item.protocol}: {item.percentage}%
-              <button
-                onClick={() => handleDeletePortfolio(index)}
-                className="delete-button"
-              >
-                Delete
-              </button>
-            </li>
-          ))}
+          {userData.portfolio.map((item, index) => {
+            const protoData = userData.protocolData[item.protocol.toLowerCase()] || { securityScore: 5, tvl: 0, health: 'Unknown' };
+            return (
+              <li key={index}>
+                {item.protocol}: {item.percentage}% 
+                (Security: {protoData.securityScore}/10, TVL: ${(protoData.tvl / 1e9).toFixed(1)}B, Health: {protoData.health})
+                <button
+                  onClick={() => handleDeletePortfolio(index)}
+                  className="delete-button"
+                >
+                  Delete
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p>No portfolio items yet.</p>
@@ -188,7 +207,7 @@ const Dashboard = () => {
         <ul>
           {userData.walletAddresses.map((address, index) => (
             <li key={index}>
-              {address} {balances[address] ? `- ${balances[address]} ETH` : ''}
+              {address} {balances[address] ? `- ${Number(balances[address]).toFixed(4)} ETH ($${((Number(balances[address]) * 1800)).toFixed(2)})` : ''}
               <button
                 onClick={() => handleDeleteWallet(index)}
                 className="delete-button"
@@ -203,7 +222,7 @@ const Dashboard = () => {
       )}
 
       <div className="risk-score">
-        <h3>Risk Level: {calculateRiskScore()}</h3>
+        <h3>Risk Level: {risk.level} (Score: {risk.score.toFixed(2)})</h3>
       </div>
 
       <button onClick={handleLogout} className="auth-button logout-button">Logout</button>
