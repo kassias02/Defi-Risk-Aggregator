@@ -84,6 +84,23 @@ body {
   margin: 0;
 }
 
+.optimization {
+  margin: 20px 0;
+  padding: 10px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.optimization ul {
+  padding-left: 20px;
+}
+
+.optimization p {
+  color: #495057;
+  font-weight: bold;
+}
+
 h2 {
   color: #333;
 }

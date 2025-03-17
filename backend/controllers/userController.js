@@ -2,11 +2,52 @@ const User = require('../models/user');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Mock protocol data (replace with real API calls later)
 const protocolData = {
-  'eth': { securityScore: 8, tvl: 10000000000, health: 'Stable' },
-  'aave': { securityScore: 9, tvl: 5000000000, health: 'Strong' },
-  'bizarre': { securityScore: 4, tvl: 1000000, health: 'Risky' }
+  'eth': { securityScore: 8, tvl: 10000000000, health: 'Stable', apy: 4 },
+  'aave': { securityScore: 9, tvl: 5000000000, health: 'Strong', apy: 6 },
+  'bizarre': { securityScore: 4, tvl: 1000000, health: 'Risky', apy: 10 }
+};
+
+const optimizePortfolio = (portfolio) => {
+  const totalPercentage = portfolio.reduce((sum, item) => sum + Number(item.percentage), 0);
+  if (totalPercentage === 0) return { suggestions: [], targetRisk: 0, targetYield: 0 };
+
+  const currentRisk = portfolio.reduce((sum, item) => {
+    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5 };
+    return sum + (10 - proto.securityScore) * (item.percentage / 100);
+  }, 0);
+  const currentYield = portfolio.reduce((sum, item) => {
+    const proto = protocolData[item.protocol.toLowerCase()] || { apy: 0 };
+    return sum + proto.apy * (item.percentage / 100);
+  }, 0);
+
+  const suggestions = [];
+  let targetRisk = currentRisk;
+  let targetYield = currentYield;
+
+  // Simple optimization: reduce high-risk, increase high-yield
+  Object.keys(protocolData).forEach(proto => {
+    const current = portfolio.find(p => p.protocol.toLowerCase() === proto) || { percentage: 0 };
+    const currentPerc = Number(current.percentage);
+    const { securityScore, apy } = protocolData[proto];
+    const riskImpact = 10 - securityScore;
+
+    if (riskImpact > 5 && currentPerc > 0) {
+      const reduceBy = Math.min(currentPerc, 10);
+      suggestions.push(`Reduce ${proto} by ${reduceBy}% (Risk: ${riskImpact}/10)`);
+      targetRisk -= riskImpact * (reduceBy / 100);
+      targetYield -= apy * (reduceBy / 100);
+    } else if (apy > currentYield && currentPerc < 50) {
+      const increaseBy = Math.min(10, 100 - totalPercentage);
+      if (increaseBy > 0) {
+        suggestions.push(`Increase ${proto} by ${increaseBy}% (APY: ${apy}%)`);
+        targetRisk += riskImpact * (increaseBy / 100);
+        targetYield += apy * (increaseBy / 100);
+      }
+    }
+  });
+
+  return { suggestions, targetRisk: targetRisk.toFixed(2), targetYield: targetYield.toFixed(2) };
 };
 
 module.exports = {
@@ -45,7 +86,8 @@ module.exports = {
   getUser: async (req, res) => {
     try {
       const user = await User.findById(req.user.id).select('-password');
-      res.json({ ...user._doc, protocolData });
+      const optimization = optimizePortfolio(user.portfolio);
+      res.json({ ...user._doc, protocolData, optimization });
     } catch (err) {
       console.error(err);
       res.status(500).json({ msg: 'Server error' });
