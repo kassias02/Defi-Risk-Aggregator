@@ -27,7 +27,6 @@ const Dashboard = () => {
           'https://api.mainnet-beta.solana.com',
           'https://solana-api.projectserum.com'
         ];
-        const solConnection = new Connection(solRpcs[0], 'confirmed');
 
         const user = userResponse.data;
         const walletBalances = {};
@@ -83,7 +82,10 @@ const Dashboard = () => {
       const response = await api.post('/portfolio', { protocol, percentage }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUserData({ ...userData, portfolio: response.data.portfolio });
+      const updatedUser = await api.get('/user', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData(updatedUser.data);
       setProtocol('');
       setPercentage('');
     } catch (err) {
@@ -95,10 +97,13 @@ const Dashboard = () => {
   const handleDeletePortfolio = async (index) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await api.delete(`/portfolio/${index}`, {
+      await api.delete(`/portfolio/${index}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUserData({ ...userData, portfolio: response.data.portfolio });
+      const updatedUser = await api.get('/user', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData(updatedUser.data);
     } catch (err) {
       console.error('Delete portfolio error:', err.message || err);
       alert('Failed to delete portfolio item: ' + (err.response?.data?.msg || 'Unknown error'));
@@ -118,7 +123,6 @@ const Dashboard = () => {
         'https://api.mainnet-beta.solana.com',
         'https://solana-api.projectserum.com'
       ];
-      const solConnection = new Connection(solRpcs[0], 'confirmed');
 
       const newBalances = { ...balances, [walletAddress]: { status: 'Fetching...' } };
       setBalances(newBalances);
@@ -236,11 +240,11 @@ const Dashboard = () => {
       {userData.portfolio.length > 0 ? (
         <ul>
           {userData.portfolio.map((item, index) => {
-            const protoData = userData.protocolData[item.protocol.toLowerCase()] || { securityScore: 5, tvl: 0, health: 'Unknown' };
+            const protoData = userData.protocolData[item.protocol.toLowerCase()] || { securityScore: 5, tvl: 0, health: 'Unknown', apy: 0 };
             return (
               <li key={index}>
                 {item.protocol}: {item.percentage}% 
-                (Security: {protoData.securityScore}/10, TVL: ${(protoData.tvl / 1e9).toFixed(1)}B, Health: {protoData.health})
+                (Security: {protoData.securityScore}/10, TVL: ${(protoData.tvl / 1e9).toFixed(1)}B, Health: {protoData.health}, APY: {protoData.apy}%)
                 <button
                   onClick={() => handleDeletePortfolio(index)}
                   className="delete-button"
@@ -253,6 +257,20 @@ const Dashboard = () => {
         </ul>
       ) : (
         <p>No portfolio items yet.</p>
+      )}
+
+      <h3>Portfolio Optimization</h3>
+      {userData.optimization && userData.optimization.suggestions.length > 0 ? (
+        <div className="optimization">
+          <ul>
+            {userData.optimization.suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+          <p>Target Risk: {userData.optimization.targetRisk} | Target Yield: {userData.optimization.targetYield}%</p>
+        </div>
+      ) : (
+        <p>No optimization suggestions at this time.</p>
       )}
 
       <h3>Your Wallets</h3>
