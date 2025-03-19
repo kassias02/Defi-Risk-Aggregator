@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
@@ -12,12 +11,15 @@ const Dashboard = () => {
   const [percentage, setPercentage] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [balances, setBalances] = useState({});
+  const [isLoadingBalances, setIsLoadingBalances] = useState(true);
+  const [alerts, setAlerts] = useState([]); // Added for alerts
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
         const response = await api.get('/user', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -38,6 +40,7 @@ const Dashboard = () => {
               const connection = new Connection(solRpcs[0], 'confirmed');
               const publicKey = new PublicKey(address);
               const solBalance = await connection.getBalance(publicKey);
+              console.log(`SOL Balance for ${address}: ${solBalance / 1e9}`);
               walletBalances[address] = { sol: solBalance / 1e9 };
             } else {
               walletBalances[address] = { error: 'Unsupported Address' };
@@ -46,15 +49,33 @@ const Dashboard = () => {
             walletBalances[address] = { error: `Fetch Error: ${err.message}` };
           }
         }));
+        console.log('Fetched Balances:', walletBalances);
         setBalances(walletBalances);
+        setIsLoadingBalances(false);
       } catch (err) {
         console.error('Fetch error:', err);
         localStorage.removeItem('token');
         navigate('/login');
+        setIsLoadingBalances(false);
       }
     };
     fetchData();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!userData || !Object.keys(balances).length) return;
+    const newAlerts = [];
+    userData.portfolio.forEach(item => {
+      const proto = userData.protocolData[item.protocol.toLowerCase().trim()];
+      if (proto.securityScore < 5) newAlerts.push(`${item.protocol} has low security: ${proto.securityScore}/10`);
+      if (proto.tvl < 1e9) newAlerts.push(`${item.protocol} TVL below $1B: $${(proto.tvl / 1e9).toFixed(3)}B`);
+    });
+    Object.entries(balances).forEach(([address, bal]) => {
+      if (bal.eth && Number(bal.eth) > 1) newAlerts.push(`${address} holds high ETH: ${Number(bal.eth).toFixed(4)} ETH`);
+      if (bal.sol && Number(bal.sol) > 10) newAlerts.push(`${address} holds high SOL: ${Number(bal.sol).toFixed(4)} SOL`);
+    });
+    setAlerts(newAlerts);
+  }, [userData, balances]);
 
   const handleAddPortfolioItem = async (e) => {
     e.preventDefault();
@@ -101,6 +122,7 @@ const Dashboard = () => {
       setUserData(response.data);
       const ethProvider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS');
       const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS', 'confirmed');
+      setIsLoadingBalances(true);
       if (ethers.isAddress(walletAddress)) {
         const ethBalance = await ethProvider.getBalance(walletAddress);
         setBalances((prev) => ({ ...prev, [walletAddress]: { eth: ethers.formatEther(ethBalance) } }));
@@ -110,9 +132,11 @@ const Dashboard = () => {
         setBalances((prev) => ({ ...prev, [walletAddress]: { sol: solBalance / 1e9 } }));
       }
       setWalletAddress('');
+      setIsLoadingBalances(false);
     } catch (err) {
       console.error('Error adding wallet:', err);
       alert('Failed to add wallet');
+      setIsLoadingBalances(false);
     }
   };
 
@@ -145,8 +169,12 @@ const Dashboard = () => {
     }, 0);
     
     console.log('Balances:', balances);
-    const walletRisk = Object.values(balances).reduce((sum, bal) => 
-      sum + ((bal.eth && Number(bal.eth) > 0.1) || (bal.sol && bal.sol > 10) ? 2 : 0), 0);
+    const walletRisk = Object.values(balances).reduce((sum, bal) => {
+      const ethRisk = bal.eth && Number(bal.eth) > 0.1 ? 2 : 0;
+      const solRisk = bal.sol && Number(bal.sol) > 10 ? 2 : 0;
+      console.log(`Balance Check - ETH: ${bal.eth || 0}, SOL: ${bal.sol || 0}, Risk: ${ethRisk + solRisk}`);
+      return sum + ethRisk + solRisk;
+    }, 0);
     console.log('Wallet Risk:', walletRisk);
     totalRisk += walletRisk;
 
@@ -156,7 +184,7 @@ const Dashboard = () => {
     };
   };
 
-  if (!userData) return <div>Loading...</div>;
+  if (!userData || isLoadingBalances) return <div>Loading...</div>;
 
   const risk = calculateRiskLevel();
 
@@ -247,6 +275,17 @@ const Dashboard = () => {
           </li>
         ))}
       </ul>
+
+      {alerts.length > 0 && (
+        <div className="alerts">
+          <h3>Alerts</h3>
+          <ul>
+            {alerts.map((alert, index) => (
+              <li key={index} style={{ color: 'red' }}>{alert}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p>Risk Level: {risk.level} (Score: {risk.score})</p>
 
