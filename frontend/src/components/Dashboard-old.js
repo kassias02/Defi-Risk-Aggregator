@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import { Connection, PublicKey } from '@solana/web3.js';
 import api from '../services/api';
-import '../styles.css';
 
 const Dashboard = () => {
   const [userData, setUserData] = useState(null);
@@ -11,7 +9,6 @@ const Dashboard = () => {
   const [percentage, setPercentage] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [balances, setBalances] = useState({});
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,7 +17,7 @@ const Dashboard = () => {
         const response = await api.get('/user', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('User Data:', response.data); // Debug log
+        console.log('Full User Data:', JSON.stringify(response.data, null, 2)); // Detailed log
         const user = response.data;
         setUserData(user);
 
@@ -49,13 +46,11 @@ const Dashboard = () => {
           setBalances((prev) => ({ ...prev, ...walletBalances }));
         }
       } catch (err) {
-        console.error('Fetch error:', err);
-        localStorage.removeItem('token');
-        navigate('/login');
+        console.error('Error fetching user data:', err);
       }
     };
     fetchData();
-  }, [navigate]);
+  }, []);
 
   const handleAddPortfolioItem = async (e) => {
     e.preventDefault();
@@ -71,7 +66,6 @@ const Dashboard = () => {
       setPercentage('');
     } catch (err) {
       console.error('Error adding portfolio item:', err);
-      alert('Failed to add portfolio item');
     }
   };
 
@@ -86,7 +80,6 @@ const Dashboard = () => {
       setUserData(response.data);
     } catch (err) {
       console.error('Error deleting portfolio item:', err);
-      alert('Failed to delete portfolio item');
     }
   };
 
@@ -102,18 +95,18 @@ const Dashboard = () => {
       setUserData(response.data);
       setWalletAddress('');
       const ethProvider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS');
-      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS', 'confirmed');
+      const solRpcs = ['https://solana-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS'];
       if (ethers.isAddress(walletAddress)) {
         const ethBalance = await ethProvider.getBalance(walletAddress);
         setBalances((prev) => ({ ...prev, [walletAddress]: { eth: ethers.formatEther(ethBalance) } }));
       } else if (walletAddress.length >= 32 && walletAddress.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(walletAddress)) {
+        const connection = new Connection(solRpcs[0], 'confirmed');
         const publicKey = new PublicKey(walletAddress);
         const solBalance = await connection.getBalance(publicKey);
         setBalances((prev) => ({ ...prev, [walletAddress]: { sol: solBalance / 1e9 } }));
       }
     } catch (err) {
       console.error('Error adding wallet:', err);
-      alert('Failed to add wallet');
     }
   };
 
@@ -133,14 +126,14 @@ const Dashboard = () => {
       });
     } catch (err) {
       console.error('Error deleting wallet:', err);
-      alert('Failed to delete wallet');
     }
   };
 
   const calculateRiskLevel = (portfolio) => {
     const totalRisk = portfolio.reduce((sum, item) => {
-      const proto = userData?.protocolData[item.protocol.toLowerCase().trim()] || { securityScore: 5 };
-      console.log(`${item.protocol}: Security Score = ${proto.securityScore}`); // Debug log
+      const protoKey = item.protocol.toLowerCase().trim();
+      const proto = userData?.protocolData[protoKey] || { securityScore: 5 };
+      console.log(`${item.protocol} (trimmed: ${protoKey}): Security Score = ${proto.securityScore}`); // Debug log
       return sum + (10 - proto.securityScore) * (item.percentage / 100);
     }, 0);
     return { 
@@ -154,47 +147,41 @@ const Dashboard = () => {
   const risk = calculateRiskLevel(userData.portfolio);
 
   return (
-    <div className="dashboard-container">
-      <h2>Dashboard</h2>
+    <div>
+      <h1>Dashboard</h1>
       <p>Welcome, {userData.email}!</p>
 
-      <h3>Add Portfolio Item</h3>
-      <form onSubmit={handleAddPortfolioItem} className="portfolio-form">
+      <h2>Add Portfolio Item</h2>
+      <form onSubmit={handleAddPortfolioItem}>
         <input
           type="text"
+          placeholder="Protocol (e.g., Aave)"
           value={protocol}
           onChange={(e) => setProtocol(e.target.value)}
-          placeholder="Protocol (e.g., Aave)"
-          required
-          className="auth-input"
         />
         <input
           type="number"
+          placeholder="Percentage (0-100)"
           value={percentage}
           onChange={(e) => setPercentage(e.target.value)}
-          placeholder="Percentage (0-100)"
           min="0"
           max="100"
-          required
-          className="auth-input"
         />
-        <button type="submit" className="auth-button">Add Item</button>
+        <button type="submit">Add Item</button>
       </form>
 
-      <h3>Add Wallet Address</h3>
-      <form onSubmit={handleAddWallet} className="portfolio-form">
+      <h2>Add Wallet Address</h2>
+      <form onSubmit={handleAddWallet}>
         <input
           type="text"
+          placeholder="Wallet Address (e.g., 0x... or Solana)"
           value={walletAddress}
           onChange={(e) => setWalletAddress(e.target.value)}
-          placeholder="Wallet Address (e.g., 0x... or Solana)"
-          required
-          className="auth-input"
         />
-        <button type="submit" className="auth-button">Add Wallet</button>
+        <button type="submit">Add Wallet</button>
       </form>
 
-      <h3>Your Portfolio</h3>
+      <h2>Your Portfolio</h2>
       <ul>
         {userData.portfolio.map((item, index) => {
           const protoKey = item.protocol.toLowerCase().trim();
@@ -204,30 +191,28 @@ const Dashboard = () => {
             health: 'Unknown',
             apy: 0
           };
-          console.log(`Mapping ${item.protocol} -> ${protoKey}:`, proto); // Debug log
+          console.log(`Rendering ${item.protocol} (trimmed: ${protoKey}):`, proto); // Debug log
           const tvlInBillions = proto.tvl >= 1e9 ? (proto.tvl / 1e9).toFixed(1) : (proto.tvl / 1e9).toFixed(3);
           return (
             <li key={index}>
               {item.protocol}: {item.percentage}% 
               (Security: {proto.securityScore}/10, TVL: ${tvlInBillions}B, 
               Health: {proto.health}, APY: {proto.apy}%) 
-              <button onClick={() => handleDeletePortfolioItem(index)} className="delete-button">Delete</button>
+              <button onClick={() => handleDeletePortfolioItem(index)}>Delete</button>
             </li>
           );
         })}
       </ul>
 
-      <h3>Portfolio Optimization</h3>
-      <div className="optimization">
-        <ul>
-          {userData.optimization.suggestions.map((suggestion, index) => (
-            <li key={index}>{suggestion}</li>
-          ))}
-        </ul>
-        <p>Target Risk: {userData.optimization.targetRisk} | Target Yield: {userData.optimization.targetYield}%</p>
-      </div>
+      <h2>Portfolio Optimization</h2>
+      <ul>
+        {userData.optimization.suggestions.map((suggestion, index) => (
+          <li key={index}>{suggestion}</li>
+        ))}
+      </ul>
+      <p>Target Risk: {userData.optimization.targetRisk} | Target Yield: {userData.optimization.targetYield}%</p>
 
-      <h3>Your Wallets</h3>
+      <h2>Your Wallets</h2>
       <ul>
         {userData.walletAddresses.map((address, index) => (
           <li key={index}>
@@ -236,14 +221,14 @@ const Dashboard = () => {
             {balances[address]?.sol ? ` - ${Number(balances[address].sol).toFixed(4)} SOL ($${((Number(balances[address].sol) * 50)).toFixed(2)})` : ''}
             {balances[address]?.error ? ` - ${balances[address].error}` : ''}
             {balances[address]?.status ? ` - ${balances[address].status}` : ''}
-            <button onClick={() => handleDeleteWallet(index)} className="delete-button">Delete</button>
+            <button onClick={() => handleDeleteWallet(index)}>Delete</button>
           </li>
         ))}
       </ul>
 
       <p>Risk Level: {risk.level} (Score: {risk.score})</p>
 
-      <button onClick={() => { localStorage.removeItem('token'); navigate('/login'); }} className="auth-button logout-button">Logout</button>
+      <button onClick={() => { localStorage.removeItem('token'); window.location.reload(); }}>Logout</button>
     </div>
   );
 };

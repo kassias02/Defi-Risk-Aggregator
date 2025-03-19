@@ -13,46 +13,58 @@ const optimizePortfolio = (portfolio) => {
   if (totalPercentage === 0) return { suggestions: [], targetRisk: 0, targetYield: 0 };
 
   const currentRisk = portfolio.reduce((sum, item) => {
-    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5, apy: 0 };
+    const proto = protocolData[item.protocol.toLowerCase().trim()] || { securityScore: 5, apy: 0 };
     return sum + (10 - proto.securityScore) * (item.percentage / 100);
   }, 0);
   const currentYield = portfolio.reduce((sum, item) => {
-    const proto = protocolData[item.protocol.toLowerCase()] || { apy: 0 };
+    const proto = protocolData[item.protocol.toLowerCase().trim()] || { apy: 0 };
     return sum + proto.apy * (item.percentage / 100);
   }, 0);
 
   const suggestions = [];
   let targetRisk = currentRisk;
   let targetYield = currentYield;
-  const remainingCapacity = 100 - totalPercentage;
+  let remainingCapacity = 100 - totalPercentage;
 
-  // Reduce high-risk protocols first
   portfolio.forEach(item => {
-    const proto = protocolData[item.protocol.toLowerCase()] || { securityScore: 5, apy: 0 };
+    const proto = protocolData[item.protocol.toLowerCase().trim()] || { securityScore: 5, apy: 0 };
     const riskImpact = 10 - proto.securityScore;
     const currentPerc = Number(item.percentage);
-    if (riskImpact > 5 && currentPerc > 0) {
+    if (riskImpact >= 5 && currentPerc > 0) {
       const reduceBy = Math.min(currentPerc, 10);
-      suggestions.push(`Reduce ${item.protocol} by ${reduceBy}% (Risk: ${riskImpact}/10)`);
+      suggestions.push(`Reduce ${item.protocol.trim()} by ${reduceBy}% (Risk: ${riskImpact}/10)`);
       targetRisk -= riskImpact * (reduceBy / 100);
       targetYield -= proto.apy * (reduceBy / 100);
+      remainingCapacity += reduceBy;
     }
   });
 
-  // Increase high-yield, low-risk protocols
+  let bestProto = null;
+  let bestScore = -Infinity;
   Object.keys(protocolData).forEach(proto => {
-    const current = portfolio.find(p => p.protocol.toLowerCase() === proto) || { percentage: 0 };
+    const current = portfolio.find(p => p.protocol.toLowerCase().trim() === proto) || { percentage: 0 };
     const currentPerc = Number(current.percentage);
     const { securityScore, apy } = protocolData[proto];
     const riskImpact = 10 - securityScore;
-
+    const score = apy - riskImpact;
     if (apy > currentYield / totalPercentage && riskImpact < 5 && currentPerc < 50 && remainingCapacity > 0) {
-      const increaseBy = Math.min(10, remainingCapacity);
-      suggestions.push(`Increase ${proto} by ${increaseBy}% (APY: ${apy}%)`);
-      targetRisk += riskImpact * (increaseBy / 100);
-      targetYield += apy * (increaseBy / 100);
+      if (score > bestScore) {
+        bestScore = score;
+        bestProto = proto;
+      }
     }
   });
+
+  if (bestProto) {
+    const current = portfolio.find(p => p.protocol.toLowerCase().trim() === bestProto) || { percentage: 0 };
+    const currentPerc = Number(current.percentage);
+    const { securityScore, apy } = protocolData[bestProto];
+    const riskImpact = 10 - securityScore;
+    const increaseBy = Math.min(10, remainingCapacity);
+    suggestions.push(`Increase ${bestProto} by ${increaseBy}% (APY: ${apy}%)`);
+    targetRisk += riskImpact * (increaseBy / 100);
+    targetYield += apy * (increaseBy / 100);
+  }
 
   return { suggestions, targetRisk: targetRisk.toFixed(2), targetYield: targetYield.toFixed(2) };
 };
