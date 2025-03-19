@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
@@ -20,7 +21,7 @@ const Dashboard = () => {
         const response = await api.get('/user', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('User Data:', response.data); // Debug log
+        console.log('User Data:', response.data);
         const user = response.data;
         setUserData(user);
 
@@ -28,9 +29,7 @@ const Dashboard = () => {
         const solRpcs = ['https://solana-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS'];
 
         const walletBalances = {};
-        for (const address of user.walletAddresses) {
-          walletBalances[address] = { status: 'Fetching...' };
-          setBalances((prev) => ({ ...prev, [address]: { status: 'Fetching...' } }));
+        await Promise.all(user.walletAddresses.map(async (address) => {
           try {
             if (ethers.isAddress(address)) {
               const ethBalance = await ethProvider.getBalance(address);
@@ -46,8 +45,8 @@ const Dashboard = () => {
           } catch (err) {
             walletBalances[address] = { error: `Fetch Error: ${err.message}` };
           }
-          setBalances((prev) => ({ ...prev, ...walletBalances }));
-        }
+        }));
+        setBalances(walletBalances);
       } catch (err) {
         console.error('Fetch error:', err);
         localStorage.removeItem('token');
@@ -100,7 +99,6 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setUserData(response.data);
-      setWalletAddress('');
       const ethProvider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS');
       const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/cGTUqBrMuqkTR0ZmpVR55i8MCX_eX4kS', 'confirmed');
       if (ethers.isAddress(walletAddress)) {
@@ -111,6 +109,7 @@ const Dashboard = () => {
         const solBalance = await connection.getBalance(publicKey);
         setBalances((prev) => ({ ...prev, [walletAddress]: { sol: solBalance / 1e9 } }));
       }
+      setWalletAddress('');
     } catch (err) {
       console.error('Error adding wallet:', err);
       alert('Failed to add wallet');
@@ -137,12 +136,20 @@ const Dashboard = () => {
     }
   };
 
-  const calculateRiskLevel = (portfolio) => {
-    const totalRisk = portfolio.reduce((sum, item) => {
+  const calculateRiskLevel = () => {
+    if (!userData || !userData.portfolio.length) return { level: 'N/A', score: 0 };
+    let totalRisk = userData.portfolio.reduce((sum, item) => {
       const proto = userData?.protocolData[item.protocol.toLowerCase().trim()] || { securityScore: 5 };
-      console.log(`${item.protocol}: Security Score = ${proto.securityScore}`); // Debug log
+      console.log(`${item.protocol}: Security Score = ${proto.securityScore}`);
       return sum + (10 - proto.securityScore) * (item.percentage / 100);
     }, 0);
+    
+    console.log('Balances:', balances);
+    const walletRisk = Object.values(balances).reduce((sum, bal) => 
+      sum + ((bal.eth && Number(bal.eth) > 0.1) || (bal.sol && bal.sol > 10) ? 2 : 0), 0);
+    console.log('Wallet Risk:', walletRisk);
+    totalRisk += walletRisk;
+
     return { 
       level: totalRisk > 5 ? 'High Risk' : totalRisk > 2 ? 'Moderate Risk' : 'Low Risk', 
       score: totalRisk.toFixed(2) 
@@ -151,7 +158,7 @@ const Dashboard = () => {
 
   if (!userData) return <div>Loading...</div>;
 
-  const risk = calculateRiskLevel(userData.portfolio);
+  const risk = calculateRiskLevel();
 
   return (
     <div className="dashboard-container">
@@ -204,7 +211,7 @@ const Dashboard = () => {
             health: 'Unknown',
             apy: 0
           };
-          console.log(`Mapping ${item.protocol} -> ${protoKey}:`, proto); // Debug log
+          console.log(`Mapping ${item.protocol} -> ${protoKey}:`, proto);
           const tvlInBillions = proto.tvl >= 1e9 ? (proto.tvl / 1e9).toFixed(1) : (proto.tvl / 1e9).toFixed(3);
           return (
             <li key={index}>
